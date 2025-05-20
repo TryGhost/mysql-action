@@ -1,5 +1,37 @@
 #!/bin/sh
 
+echo "--- Debugging entrypoint.sh ---"
+echo "User: $(whoami)"
+echo "HOME: $HOME"
+echo "DOCKER_CONFIG: $DOCKER_CONFIG"
+
+echo "Checking for Docker config in $HOME/.docker:"
+if [ -f "$HOME/.docker/config.json" ]; then
+  echo "$HOME/.docker/config.json exists."
+  if grep -q '\"auths\":' "$HOME/.docker/config.json"; then
+    echo "$HOME/.docker/config.json appears to contain an 'auths' section."
+  else
+    echo "$HOME/.docker/config.json does NOT appear to contain an 'auths' section."
+  fi
+else
+  echo "$HOME/.docker/config.json not found."
+fi
+
+if [ -n "$DOCKER_CONFIG" ] && [ "$DOCKER_CONFIG" != "$HOME/.docker" ]; then # Also check DOCKER_CONFIG if it's different
+  echo "Checking for Docker config in $DOCKER_CONFIG (from DOCKER_CONFIG env var):"
+  if [ -f "$DOCKER_CONFIG/config.json" ]; then
+    echo "$DOCKER_CONFIG/config.json exists."
+    if grep -q '\"auths\":' "$DOCKER_CONFIG/config.json"; then
+      echo "$DOCKER_CONFIG/config.json appears to contain an 'auths' section."
+    else
+      echo "$DOCKER_CONFIG/config.json does NOT appear to contain an 'auths' section."
+    fi
+  else
+    echo "$DOCKER_CONFIG/config.json not found."
+  fi
+fi
+echo "--- End Debugging ---"
+
 docker_run="docker run"
 
 if [ "$INPUT_USE_TMPFS" == "true" ]; then
