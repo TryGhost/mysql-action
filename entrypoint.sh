@@ -1,40 +1,26 @@
 #!/bin/sh
 
-echo "--- Debugging entrypoint.sh ---"
-echo "User: $(whoami)"
-echo "HOME_DIR_IN_CONTAINER: $HOME"
-echo "DOCKER_CONFIG_ENV_IN_CONTAINER: $DOCKER_CONFIG"
-
-CONFIG_FOUND="false"
-
-if [ -n "$DOCKER_CONFIG" ]; then
-  echo "Checking explicitly set DOCKER_CONFIG location: $DOCKER_CONFIG/config.json"
-  if [ -f "$DOCKER_CONFIG/config.json" ]; then
-    echo "SUCCESS: Found config via DOCKER_CONFIG at $DOCKER_CONFIG/config.json"
-    CONFIG_FOUND="true"
-    grep -q '\"auths\":' "$DOCKER_CONFIG/config.json" && echo "INFO: $DOCKER_CONFIG/config.json appears to have 'auths' section." || echo "WARNING: $DOCKER_CONFIG/config.json no 'auths' section found."
+# Attempt Docker login if credentials are provided
+if [ -n "$INPUT_DOCKER_USERNAME" ] && [ -n "$INPUT_DOCKER_PASSWORD_OR_TOKEN" ]; then
+  echo "Attempting Docker login with provided credentials..."
+  # The `docker login` command expects the password on stdin.
+  # We use a HEREDOC to pass the password securely without echoing it to the logs if possible.
+  # However, the act of using it as an env var means it's less secure than direct secret handling by a dedicated login action.
+  echo "$INPUT_DOCKER_PASSWORD_OR_TOKEN" | docker login -u "$INPUT_DOCKER_USERNAME" --password-stdin
+  if [ $? -ne 0 ]; then
+    echo "Docker login FAILED. Please check the provided docker_username and docker_password_or_token."
+    echo "Proceeding without explicit login, which may lead to pull failures if the image is private or rate limits are hit."
+    # Consider exiting if login is critical: exit 1
   else
-    echo "FAILURE: $DOCKER_CONFIG/config.json not found (as specified by DOCKER_CONFIG_ENV_IN_CONTAINER)."
+    echo "Docker login successful."
   fi
+else
+  echo "Docker username/password not provided; skipping explicit login."
+  echo "Relying on existing Docker client configuration or anonymous access."
 fi
 
-if [ "$CONFIG_FOUND" = "false" ]; then
-  echo "DOCKER_CONFIG was not set or config not found there. Checking default $HOME/.docker/config.json (inside container)"
-  DEFAULT_CONTAINER_CONFIG_PATH="$HOME/.docker/config.json"
-  if [ -f "$DEFAULT_CONTAINER_CONFIG_PATH" ]; then
-    echo "SUCCESS: Found config via default $DEFAULT_CONTAINER_CONFIG_PATH"
-    CONFIG_FOUND="true"
-    grep -q '\"auths\":' "$DEFAULT_CONTAINER_CONFIG_PATH" && echo "INFO: $DEFAULT_CONTAINER_CONFIG_PATH appears to have 'auths' section." || echo "WARNING: $DEFAULT_CONTAINER_CONFIG_PATH no 'auths' section found."
-  else
-    echo "FAILURE: $DEFAULT_CONTAINER_CONFIG_PATH not found (container's default path)."
-  fi
-fi
-
-if [ "$CONFIG_FOUND" = "false" ]; then
-    echo "CRITICAL: NO DOCKER CONFIGURATION FOUND."
-fi
-
-echo "--- End Debugging ---"
+# We can remove the extensive DOCKER_CONFIG debugging now as we control the login explicitly.
+echo "--- Proceeding to MySQL Setup ---"
 
 docker_run="docker run"
 

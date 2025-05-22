@@ -53,8 +53,15 @@ inputs:
     description: "Desired size of tmpfs volume"
     required: false
     default: "3072M"
+  # Inputs for explicit Docker login
+  docker_username:
+    description: 'Optional Docker username for logging into a Docker registry. Used if explicit login is needed.'
+    required: false
+    default: ''
+  docker_password_or_token:
+    description: 'Optional Docker password or personal access token for the specified username. Used if explicit login is needed.'
+    required: false
+    default: ''
 runs:
   using: 'docker'
   image: 'Dockerfile'
-  volumes:
-    - ${{ runner.home }}/.docker:/etc/mounted_docker_config:ro
