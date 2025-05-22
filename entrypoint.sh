@@ -2,33 +2,35 @@
 
 echo "--- Debugging entrypoint.sh ---"
 echo "User: $(whoami)"
-echo "HOME: $HOME"
-echo "DOCKER_CONFIG: $DOCKER_CONFIG"
+echo "HOME_DIR: $HOME"
+echo "DOCKER_CONFIG_ENV: $DOCKER_CONFIG" # Value of the DOCKER_CONFIG environment variable itself
 
-echo "Checking for Docker config in $HOME/.docker:"
-if [ -f "$HOME/.docker/config.json" ]; then
-  echo "$HOME/.docker/config.json exists."
-  if grep -q '\"auths\":' "$HOME/.docker/config.json"; then
-    echo "$HOME/.docker/config.json appears to contain an 'auths' section."
-  else
-    echo "$HOME/.docker/config.json does NOT appear to contain an 'auths' section."
-  fi
+CONFIG_PATH_TO_CHECK=""
+
+if [ -n "$DOCKER_CONFIG" ]; then
+  echo "DOCKER_CONFIG environment variable is set to: '$DOCKER_CONFIG'"
+  CONFIG_PATH_TO_CHECK="$DOCKER_CONFIG/config.json"
+elif [ -n "$HOME" ]; then # Fallback to HOME if DOCKER_CONFIG is not set
+  echo "DOCKER_CONFIG env var not set, checking default location: '$HOME/.docker/config.json'"
+  CONFIG_PATH_TO_CHECK="$HOME/.docker/config.json"
 else
-  echo "$HOME/.docker/config.json not found."
+  echo "CRITICAL: DOCKER_CONFIG env var is not set AND HOME directory is not set. Cannot determine Docker config path."
 fi
 
-if [ -n "$DOCKER_CONFIG" ] && [ "$DOCKER_CONFIG" != "$HOME/.docker" ]; then # Also check DOCKER_CONFIG if it's different
-  echo "Checking for Docker config in $DOCKER_CONFIG (from DOCKER_CONFIG env var):"
-  if [ -f "$DOCKER_CONFIG/config.json" ]; then
-    echo "$DOCKER_CONFIG/config.json exists."
-    if grep -q '\"auths\":' "$DOCKER_CONFIG/config.json"; then
-      echo "$DOCKER_CONFIG/config.json appears to contain an 'auths' section."
+if [ -n "$CONFIG_PATH_TO_CHECK" ]; then
+  echo "Effective Docker config file path being checked: '$CONFIG_PATH_TO_CHECK'"
+  if [ -f "$CONFIG_PATH_TO_CHECK" ]; then
+    echo "SUCCESS: Docker config file '$CONFIG_PATH_TO_CHECK' exists."
+    if grep -q '\"auths\":' "$CONFIG_PATH_TO_CHECK"; then
+      echo "INFO: '$CONFIG_PATH_TO_CHECK' appears to contain an 'auths' section (good sign)."
     else
-      echo "$DOCKER_CONFIG/config.json does NOT appear to contain an 'auths' section."
+      echo "WARNING: '$CONFIG_PATH_TO_CHECK' does NOT appear to contain an 'auths' section."
     fi
   else
-    echo "$DOCKER_CONFIG/config.json not found."
+    echo "FAILURE: Docker config file '$CONFIG_PATH_TO_CHECK' not found at this path inside the container."
   fi
+else
+  echo "CRITICAL: Could not determine a Docker config.json path to check."
 fi
 echo "--- End Debugging ---"
 
