@@ -56,3 +56,5 @@ inputs:
 runs:
   using: 'docker'
   image: 'Dockerfile'
+  volumes:
+    - ${{ runner.home }}/.docker:/etc/mounted_docker_config:ro

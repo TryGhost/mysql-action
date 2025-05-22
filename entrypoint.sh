@@ -2,36 +2,38 @@
 
 echo "--- Debugging entrypoint.sh ---"
 echo "User: $(whoami)"
-echo "HOME_DIR: $HOME"
-echo "DOCKER_CONFIG_ENV: $DOCKER_CONFIG" # Value of the DOCKER_CONFIG environment variable itself
+echo "HOME_DIR_IN_CONTAINER: $HOME"
+echo "DOCKER_CONFIG_ENV_IN_CONTAINER: $DOCKER_CONFIG"
 
-CONFIG_PATH_TO_CHECK=""
+CONFIG_FOUND="false"
 
 if [ -n "$DOCKER_CONFIG" ]; then
-  echo "DOCKER_CONFIG environment variable is set to: '$DOCKER_CONFIG'"
-  CONFIG_PATH_TO_CHECK="$DOCKER_CONFIG/config.json"
-elif [ -n "$HOME" ]; then # Fallback to HOME if DOCKER_CONFIG is not set
-  echo "DOCKER_CONFIG env var not set, checking default location: '$HOME/.docker/config.json'"
-  CONFIG_PATH_TO_CHECK="$HOME/.docker/config.json"
-else
-  echo "CRITICAL: DOCKER_CONFIG env var is not set AND HOME directory is not set. Cannot determine Docker config path."
+  echo "Checking explicitly set DOCKER_CONFIG location: $DOCKER_CONFIG/config.json"
+  if [ -f "$DOCKER_CONFIG/config.json" ]; then
+    echo "SUCCESS: Found config via DOCKER_CONFIG at $DOCKER_CONFIG/config.json"
+    CONFIG_FOUND="true"
+    grep -q '\"auths\":' "$DOCKER_CONFIG/config.json" && echo "INFO: $DOCKER_CONFIG/config.json appears to have 'auths' section." || echo "WARNING: $DOCKER_CONFIG/config.json no 'auths' section found."
+  else
+    echo "FAILURE: $DOCKER_CONFIG/config.json not found (as specified by DOCKER_CONFIG_ENV_IN_CONTAINER)."
+  fi
 fi
 
-if [ -n "$CONFIG_PATH_TO_CHECK" ]; then
-  echo "Effective Docker config file path being checked: '$CONFIG_PATH_TO_CHECK'"
-  if [ -f "$CONFIG_PATH_TO_CHECK" ]; then
-    echo "SUCCESS: Docker config file '$CONFIG_PATH_TO_CHECK' exists."
-    if grep -q '\"auths\":' "$CONFIG_PATH_TO_CHECK"; then
-      echo "INFO: '$CONFIG_PATH_TO_CHECK' appears to contain an 'auths' section (good sign)."
-    else
-      echo "WARNING: '$CONFIG_PATH_TO_CHECK' does NOT appear to contain an 'auths' section."
-    fi
+if [ "$CONFIG_FOUND" = "false" ]; then
+  echo "DOCKER_CONFIG was not set or config not found there. Checking default $HOME/.docker/config.json (inside container)"
+  DEFAULT_CONTAINER_CONFIG_PATH="$HOME/.docker/config.json"
+  if [ -f "$DEFAULT_CONTAINER_CONFIG_PATH" ]; then
+    echo "SUCCESS: Found config via default $DEFAULT_CONTAINER_CONFIG_PATH"
+    CONFIG_FOUND="true"
+    grep -q '\"auths\":' "$DEFAULT_CONTAINER_CONFIG_PATH" && echo "INFO: $DEFAULT_CONTAINER_CONFIG_PATH appears to have 'auths' section." || echo "WARNING: $DEFAULT_CONTAINER_CONFIG_PATH no 'auths' section found."
   else
-    echo "FAILURE: Docker config file '$CONFIG_PATH_TO_CHECK' not found at this path inside the container."
+    echo "FAILURE: $DEFAULT_CONTAINER_CONFIG_PATH not found (container's default path)."
   fi
-else
-  echo "CRITICAL: Could not determine a Docker config.json path to check."
 fi
+
+if [ "$CONFIG_FOUND" = "false" ]; then
+    echo "CRITICAL: NO DOCKER CONFIGURATION FOUND."
+fi
+
 echo "--- End Debugging ---"
 
 docker_run="docker run"
