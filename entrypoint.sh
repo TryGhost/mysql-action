@@ -1,23 +1,25 @@
 #!/bin/sh
 
-# Attempt Docker login if credentials are provided
-if [ -n "$INPUT_DOCKER_USERNAME" ] && [ -n "$INPUT_DOCKER_PASSWORD_OR_TOKEN" ]; then
-  echo "Attempting Docker login with provided credentials..."
-  # The `docker login` command expects the password on stdin.
-  # We use a HEREDOC to pass the password securely without echoing it to the logs if possible.
-  # However, the act of using it as an env var means it's less secure than direct secret handling by a dedicated login action.
-  echo "$INPUT_DOCKER_PASSWORD_OR_TOKEN" | docker login -u "$INPUT_DOCKER_USERNAME" --password-stdin
-  if [ $? -ne 0 ]; then
-    echo "Docker login FAILED. Please check the provided docker_username and docker_password_or_token."
-    echo "Proceeding without explicit login, which may lead to pull failures if the image is private or rate limits are hit."
-    # Consider exiting if login is critical: exit 1
-  else
-    echo "Docker login successful."
-  fi
-else
-  echo "Docker username/password not provided; skipping explicit login."
-  echo "Relying on existing Docker client configuration or anonymous access."
-fi
+# # Attempt Docker login if credentials are provided
+# if [ -n "$INPUT_DOCKER_USERNAME" ] && [ -n "$INPUT_DOCKER_PASSWORD_OR_TOKEN" ]; then
+#   echo "Attempting Docker login with provided credentials..."
+#   # The `docker login` command expects the password on stdin.
+#   # We use a HEREDOC to pass the password securely without echoing it to the logs if possible.
+#   # However, the act of using it as an env var means it's less secure than direct secret handling by a dedicated login action.
+#   echo "$INPUT_DOCKER_PASSWORD_OR_TOKEN" | docker login -u "$INPUT_DOCKER_USERNAME" --password-stdin
+#   if [ $? -ne 0 ]; then
+#     echo "Docker login FAILED. Please check the provided docker_username and docker_password_or_token."
+#     echo "Proceeding without explicit login, which may lead to pull failures if the image is private or rate limits are hit."
+#     # Consider exiting if login is critical: exit 1
+#   else
+#     echo "Docker login successful."
+#   fi
+# else
+#   echo "Docker username/password not provided; skipping explicit login."
+#   echo "Relying on existing Docker client configuration or anonymous access."
+# fi
+
+echo "$(pwd)"
 
 # We can remove the extensive DOCKER_CONFIG debugging now as we control the login explicitly.
 echo "--- Proceeding to MySQL Setup ---"
