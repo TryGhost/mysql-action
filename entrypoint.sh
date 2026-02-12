@@ -43,10 +43,26 @@ fi
 docker_run="$docker_run -d --name mysql -p $INPUT_HOST_PORT:$INPUT_CONTAINER_PORT mysql:$INPUT_MYSQL_VERSION --port=$INPUT_CONTAINER_PORT"
 docker_run="$docker_run --character-set-server=$INPUT_CHARACTER_SET_SERVER --collation-server=$INPUT_COLLATION_SERVER --default-authentication-plugin=$INPUT_AUTHENTICATION_PLUGIN"
 
-sh -c "$docker_run"
+if ! sh -c "$docker_run"; then
+  echo "Failed to start MySQL container"
+  exit 1
+fi
 
+MAX_TRIES=120
+TRIES=0
 while ! docker exec mysql mysql -h"127.0.0.1" -P"$INPUT_HOST_PORT" -u"$HEALTHCHECK_USER" -p"$HEALTHCHECK_PASS" -e "SELECT 1" $INPUT_MYSQL_DATABASE &> /dev/null; do
-    echo "MySQL is unavailable - sleeping"
+    TRIES=$((TRIES + 1))
+    if [ "$TRIES" -ge "$MAX_TRIES" ]; then
+      echo "MySQL failed to start after ${MAX_TRIES}s"
+      docker logs mysql 2>&1 || true
+      exit 1
+    fi
+    if ! docker inspect --format='{{.State.Running}}' mysql 2>/dev/null | grep -q true; then
+      echo "MySQL container is not running"
+      docker logs mysql 2>&1 || true
+      exit 1
+    fi
+    echo "MySQL is unavailable - sleeping ($TRIES/$MAX_TRIES)"
     sleep 1
 done
 
