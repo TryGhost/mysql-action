@@ -2,7 +2,7 @@
 
 docker_run="docker run"
 
-if [ "$INPUT_USE_TMPFS" == "true" ]; then
+if [ "$INPUT_USE_TMPFS" = "true" ]; then
   echo "Using tmpfs"
   docker_run="$docker_run --tmpfs /var/lib/mysql:rw,noexec,nosuid,size=$INPUT_TMPFS_SIZE"
 fi
@@ -50,7 +50,7 @@ fi
 
 MAX_TRIES=120
 TRIES=0
-while ! docker exec mysql mysql -h"127.0.0.1" -P"$INPUT_HOST_PORT" -u"$HEALTHCHECK_USER" -p"$HEALTHCHECK_PASS" -e "SELECT 1" $INPUT_MYSQL_DATABASE &> /dev/null; do
+while ! docker exec mysql mysql -h"127.0.0.1" -P"$INPUT_HOST_PORT" -u"$HEALTHCHECK_USER" -p"$HEALTHCHECK_PASS" -e "SELECT 1" $INPUT_MYSQL_DATABASE > /dev/null 2>&1; do
     TRIES=$((TRIES + 1))
     if [ "$TRIES" -ge "$MAX_TRIES" ]; then
       echo "MySQL failed to start after ${MAX_TRIES}s"
